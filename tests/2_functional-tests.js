@@ -7,15 +7,16 @@ chai.use(chaiHttp);
 
 suite('Functional Tests', function() {
 
-  test('GET /api/stock-prices with stock query parameter returns stockData', function(done){
+  test('GET /api/stock-prices with stock query parameter returns stockData', function(done) {
     chai.request(server)
-      .get('/api/stock-prices')
-      .query({ stock: 'AAPL' }) 
-      .end(function(err, res) {
-        assert.equal(res.status, 200);          
-        assert.property(res.body, 'stockData');  
+        .get('/api/stock-prices')
+        .query({ stock: 'AAPL' })
+        .end(function(err, res) {
+        assert.equal(res.status, 200);
+        assert.property(res.body, 'stockData');
+        assert.isObject(res.body.stockData);
         done();
-      });
-  });
+    });
+});
 
 });
