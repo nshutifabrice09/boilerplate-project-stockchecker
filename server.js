@@ -3,6 +3,7 @@ require('dotenv').config();
 const express     = require('express');
 const bodyParser  = require('body-parser');
 const cors        = require('cors');
+const helmet      = require('helmet');
 
 const apiRoutes         = require('./routes/api.js');
 const fccTestingRoutes  = require('./routes/fcctesting.js');
@@ -16,6 +17,18 @@ app.use(cors({origin: '*'})); //For FCC testing purposes only
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+//security features
+app.use(helmet.hidePoweredBy());
+app.use(helmet.frameguard({ action: 'deny' }));
+app.use(helmet.xssFilter());
+
+const timeInSeconds=90*24*60*60;
+app.use(helmet.hsts({
+  maxAge: timeInSeconds, force: true
+}));
+
+
 
 //Index page (static HTML)
 app.route('/')

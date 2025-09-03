@@ -10,10 +10,10 @@
 		"chai": "^4.2.0",
 		"chai-http": "^4.3.0",
 		"cors": "^2.8.1",
-		"dotenv": "^8.2.0",
+		"dotenv": "^8.6.0",
 		"express": "^4.14.0",
 		"helmet": "^3.1.0",
-		"mocha": "^3.2.0"
+		"mocha": "^11.7.2"
 	},
 	"repository": {
 		"type": "git",
@@ -23,5 +23,8 @@
 		"node",
 		"express"
 	],
-	"license": "MIT"
+	"license": "MIT",
+	"devDependencies": {
+		"cross-env": "^10.0.0"
+	}
 }
