@@ -18,16 +18,18 @@ app.use(cors({origin: '*'})); //For FCC testing purposes only
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-//security features
-app.use(helmet.hidePoweredBy());
-app.use(helmet.frameguard({ action: 'deny' }));
-app.use(helmet.xssFilter());
-
-const timeInSeconds=90*24*60*60;
-app.use(helmet.hsts({
-  maxAge: timeInSeconds, force: true
-}));
-
+app.use(helmet());
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      "script-src": ["'self'"],
+      "style-src": ["'self'"],
+      "img-src": ["'self'"],
+      "font-src": ["'self'"],
+    },
+  })
+);
 
 
 //Index page (static HTML)
