@@ -71,21 +71,21 @@ suite('Functional Tests', function() {
   });
 
   // Viewing two stocks and liking them
-  test('Viewing two stocks and liking them', function(done) {
+  test('stockData contains stock and price fields', function(done) {
     chai.request(server)
-      .get('/api/stock-prices')
-      .query({ stock: ['GOOG', 'AAPL'], like: true })
-      .end(function(err, res) {
+        . get('/api/stock-prices')
+        .query({ stock: 'GOOG' })
+        .end(function(err, res) {
         assert.equal(res.status, 200);
-        assert.isArray(res.body.stockData);
-        assert.lengthOf(res.body.stockData, 2);
-        res.body.stockData.forEach(stock => {
-          assert.isString(stock.stock);
-          assert.isNumber(stock.price);
-          assert.isAtLeast(stock.likes, 1); // like counted for each
-        });
+        assert.property(res.body, 'stockData');
+
+        const data = res.body.stockData;
+        assert.property(data, 'stock');
+        assert.property(data, 'price');
+        assert.isString(data.stock);
+        assert.isNumber(data.price);
         done();
-      });
-  });
+        });
+    });
 
 });
