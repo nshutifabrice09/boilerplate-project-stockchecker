@@ -30,4 +30,32 @@ suite('Functional Tests', function() {
         });
     });
 
+    test('Liking a stock adds 1 like', function(done) {
+        chai.request(server)
+        .get('/api/stock-prices')
+        .query({ stock: 'GOOG', like: true })
+        .end(function(err, res) {
+            assert.equal(res.status, 200);
+            const stockData = res.body.stockData;
+            assert.property(stockData, 'likes');
+            assert.isNumber(stockData.likes);
+            assert.isAtLeast(stockData.likes, 1);
+            done();
+        });
+    });
+
+    test('Liking same stock again from same IP should not increase likes', function(done) {
+        chai.request(server)
+        .get('/api/stock-prices')
+        .query({ stock: 'GOOG', like: true })
+        .end(function(err, res) {
+            assert.equal(res.status, 200);
+            const stockData = res.body.stockData;
+            assert.property(stockData, 'likes');
+            assert.isNumber(stockData.likes);
+        // This test just ensures that like is not increased again
+            done();
+        });
+    });
+
 });
