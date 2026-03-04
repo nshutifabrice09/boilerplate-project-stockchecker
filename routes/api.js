@@ -1,92 +1,104 @@
-'use strict';
-const StockModel = require("../models").Stock;
-const fetch = require('node-fetch');
+const express = require('express');
+const axios = require('axios');
+const Stock = require('../models/Stock');
+const router = express.Router();
 
-async function createStock(stock, like, ip){
-  const newStock = new StockModel({
-    symbol: stock,
-    likes: like ? [ip] : [],
-  });
-  const savedNew = await newStock.save();
-  return savedNew;
-}
-
-async function findStock(stock){
-  return await StockModel.findOne({ symbol: stock }).exec();
-}
-
-
-async function saveStock(stock, like, ip){
-  let saved = {};
-  const foundStock = await findStock(stock);
-  if(!foundStock){
-    const createsaved = await createStock(stock, like, ip);
-    saved = createsaved;
-    return saved;
+// Helper to anonymize IP (truncate IPv4 to /24, IPv6 to /48)
+function anonymizeIP(ip) {
+  if (ip.includes(':')) {
+    // IPv6 - keep first 48 bits (4 hextets)
+    return ip.split(':').slice(0, 4).join(':') + ':0000:0000:0000:0000';
   }
-  else{
-    if(like && foundstock.likes.indexOf(ip) === -1){
-      foundStock.likes.push(ip);
+  // IPv4 - keep first 24 bits (first 3 octets)
+  const parts = ip.split('.');
+  return parts.slice(0, 3).join('.') + '.0';
+}
+
+// Helper to fetch stock price
+async function fetchStockPrice(symbol) {
+  try {
+    const response = await axios.get(
+      `https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${symbol}/quote`
+    );
+    return {
+      symbol: response.data.symbol,
+      price: response.data.latestPrice
+    };
+  } catch (error) {
+    throw new Error('Invalid stock symbol');
+  }
+}
+
+// Helper to get likes with IP deduplication
+async function getStockLikes(symbol, like, clientIP) {
+  const anonymizedIP = anonymizeIP(clientIP);
+  
+  if (like === 'true' || like === true) {
+    // Check if this IP has already liked this stock
+    const existingLike = await Stock.findOne({
+      symbol: symbol.toUpperCase(),
+      ips: anonymizedIP
+    });
+
+    if (!existingLike) {
+      // Add like and IP to record
+      await Stock.findOneAndUpdate(
+        { symbol: symbol.toUpperCase() },
+        { 
+          $inc: { likes: 1 },
+          $push: { ips: anonymizedIP }
+        },
+        { upsert: true, new: true }
+      );
     }
-    saved = await foundStock.save();
-    return saved;
-
   }
+
+  // Get current likes count
+  const stockData = await Stock.findOne({ symbol: symbol.toUpperCase() });
+  return stockData ? stockData.likes : 0;
 }
 
-
-async function getStock(stock){
-  const response = await fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock}/quote`);
-  const { symbol, latestPrice } = await response.json();
-  return { symbol, latestPrice };
-}
-
-module.exports = function (app) {
-  // https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/TSLA/quote
-
-  app.route("/api/stock-prices").get(async function (req, res){
+router.get('/stock-prices', async (req, res) => {
+  try {
     const { stock, like } = req.query;
-    if(Array.isArray(stock)){
-        console.log("stocks", stock);
-
-        const { symbol, latestPrice } = await getStock(stock [0]);
-        const { symbol: symbol2, latestPrice: latestPrice2 } = await getStock(stock [1]);
-        const firstStock = await saveStock(stock [0], like, req.ip);
-        const secondStock = await saveStock(stock [1], like, req.ip);
-
-        let stockData = [];
-        if (!symbol) {
-          stockData.push({
-            rel_likes: firstStock.likes.length - secondStock.likes.length,
-          });
-         
-          } else{
-          stockData.push({
-            stock: symbol,
-            price: latestPrice,
-            rel_likes: firstStock.likes.length - secondStock.likes.length,
-          });
-        }
-
-        res.json({
-          stockData,
+    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // Handle multiple stocks
+    if (Array.isArray(stock)) {
+      // Get data for both stocks
+      const stocksData = await Promise.all(
+        stock.map(async (symbol) => {
+          const priceData = await fetchStockPrice(symbol);
+          const likes = await getStockLikes(symbol, like, clientIP);
+          return { ...priceData, likes };
         })
-        return;
-      }
-    const { symbol, latestPrice } = await getStock(stock);
-    if (!symbol) {
-      res.json({ stockData: { likes: like ? 1: 0 }});
-      return;
+      );
+
+      // Calculate relative likes
+      const likesDiff = stocksData[0].likes - stocksData[1].likes;
+      const result = stocksData.map((data, index) => ({
+        stock: data.symbol,
+        price: data.price,
+        rel_likes: index === 0 ? likesDiff : -likesDiff
+      }));
+
+      return res.json({ stockData: result });
     }
 
-    const oneStockData = await saveStock(symbol, like, req.ip);
-    console.log("One Stock Data:", oneStockData);
-    res.json({ 
-      stockData: { 
-        stock: symbol, 
-        price: latestPrice, 
-        likes: oneStockData.likes.length,
-      } });
+    // Handle single stock
+    const priceData = await fetchStockPrice(stock);
+    const likes = await getStockLikes(stock, like, clientIP);
+    
+    res.json({
+      stockData: {
+        stock: priceData.symbol,
+        price: priceData.price,
+        likes
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
-  });
-};
+module.exports = router;
