@@ -22,17 +22,19 @@ app.use(helmet({
       frameSrc: ["'none'"],                // No iframes
       baseUri: ["'self'"],
       formAction: ["'self'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+      // Fix: upgradeInsecureRequests should be a boolean or array, not null
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : false
     },
     reportOnly: false
   },
-hsts: false, // Disable for testing
+  // Other security headers
+  hsts: false, // Disable for testing
   noSniff: true,
   xssFilter: true,
   frameguard: { action: 'deny' }
 }));
 
-// Additional security headers
+// Add this to allow the favicon from freeCodeCamp
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
