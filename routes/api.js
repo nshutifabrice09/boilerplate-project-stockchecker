@@ -37,7 +37,6 @@ async function saveStock(stock, like, ip){
 
 async function getStock(stock){
   const response = await fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock}/quote`);
-
   const { symbol, latestPrice } = await response.json();
   return { symbol, latestPrice };
 }
@@ -52,7 +51,7 @@ module.exports = function (app) {
 
         const { symbol, latestPrice } = await getStock(stock [0]);
         const { symbol: symbol2, latestPrice: latestPrice2 } = await getStock(stock [1]);
-        const firstStock = await saveStock(stock [0], like, req.op);
+        const firstStock = await saveStock(stock [0], like, req.ip);
         const secondStock = await saveStock(stock [1], like, req.ip);
 
         let stockData = [];
