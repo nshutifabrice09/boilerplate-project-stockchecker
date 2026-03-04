@@ -11,29 +11,28 @@ const app = express();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],           // Only allow from same origin
-      styleSrc: ["'self'"],              // CSS only from your server
-      scriptSrc: ["'self'"],             // JavaScript only from your server
-      imgSrc: ["'self'", "data:", "https://cdn.freecodecamp.org"], // Allow favicon from freeCodeCamp
-      connectSrc: ["'self'"],            // API calls only to your server
-      fontSrc: ["'self'"],                // Fonts only from your server
-      objectSrc: ["'none'"],              // No plugins
-      mediaSrc: ["'self'"],               // Media only from your server
-      frameSrc: ["'none'"],                // No iframes
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https://cdn.freecodecamp.org"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
-      // Fix: upgradeInsecureRequests should be a boolean or array, not null
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : false
+      // Fix: upgradeInsecureRequests should be [] (enabled) or false (disabled)
+      upgradeInsecureRequests: false // Empty array enables it
     },
     reportOnly: false
   },
   // Other security headers
-  hsts: false, // Disable for testing
+  hsts: false,
   noSniff: true,
   xssFilter: true,
   frameguard: { action: 'deny' }
 }));
-
 // Add this to allow the favicon from freeCodeCamp
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');

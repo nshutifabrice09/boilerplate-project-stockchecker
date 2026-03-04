@@ -1,7 +1,8 @@
 {
-	"name": "boilerplate-project-stockchecker",
-	"version": "0.0.1",
-	"description": "InfoSec project for freeCodeCamp",
+	"name": "stock-price-checker-project",
+	"version": "1.0.0",
+	"description": "My Nasdaq Stock Price Checker - Information Security Project",
+	"main": "server.js",
 	"scripts": {
 		"start": "node server.js"
 	},
