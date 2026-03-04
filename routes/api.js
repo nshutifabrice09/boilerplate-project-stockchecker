@@ -3,18 +3,24 @@ const axios = require('axios');
 const router = express.Router();
 
 // Helper to anonymize IP (truncate IPv4 to /24, IPv6 to /48)
-function anonymizeIP(ip) {
-  // Remove IPv6 prefix if present
-  ip = ip.replace('::ffff:', '');
+function anonymizeIP(ipAddress) {
+  // Create a local variable instead of reassigning parameter
+  let cleanIp = ipAddress || '0.0.0.0';
   
-  if (ip.includes(':')) {
+  // Remove IPv6 prefix if present
+  cleanIp = cleanIp.replace('::ffff:', '');
+  
+  if (cleanIp.includes(':')) {
     // IPv6 - keep first 48 bits (4 hextets)
-    const parts = ip.split(':');
+    const parts = cleanIp.split(':');
     return parts.slice(0, 4).join(':') + ':0000:0000:0000:0000';
   }
   // IPv4 - keep first 24 bits (first 3 octets)
-  const parts = ip.split('.');
-  return parts.slice(0, 3).join('.') + '.0';
+  const parts = cleanIp.split('.');
+  if (parts.length >= 3) {
+    return parts.slice(0, 3).join('.') + '.0';
+  }
+  return '0.0.0.0';
 }
 
 // Helper to fetch stock price
@@ -28,13 +34,14 @@ async function fetchStockPrice(symbol) {
       price: response.data.latestPrice
     };
   } catch (error) {
+    console.error(`Error fetching stock ${symbol}:`, error.message);
     throw new Error('Invalid stock symbol');
   }
 }
 
 // Helper to get likes with IP deduplication using PostgreSQL
-async function getStockLikes(symbol, like, clientIP, db) {
-  const anonymizedIP = anonymizeIP(clientIP);
+async function getStockLikes(symbol, like, clientIp, db) {
+  const anonymizedIP = anonymizeIP(clientIp);
   
   try {
     // Start a transaction
@@ -53,7 +60,10 @@ async function getStockLikes(symbol, like, clientIP, db) {
     const stockId = stockResult.rows[0].id;
     let currentLikes = stockResult.rows[0].likes;
     
-    if (like === 'true' || like === true) {
+    // Check if like parameter is true (handle multiple formats)
+    const shouldLike = like === 'true' || like === true || like === '1' || like === 1;
+    
+    if (shouldLike) {
       // Check if this IP has already liked this stock
       const ipCheck = await db.query(
         'SELECT id FROM stock_ips WHERE stock_id = $1 AND ip_address = $2',
@@ -81,24 +91,34 @@ async function getStockLikes(symbol, like, clientIP, db) {
     
   } catch (error) {
     await db.query('ROLLBACK');
+    console.error('Error in getStockLikes:', error);
     throw error;
   }
 }
 
+// Main API endpoint
 router.get('/stock-prices', async (req, res) => {
   const db = req.app.get('db');
   
   try {
     const { stock, like } = req.query;
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '0.0.0.0';
     
     // Handle multiple stocks
     if (Array.isArray(stock)) {
+      // Validate we have at least 2 stocks
+      if (stock.length < 2) {
+        return res.status(400).json({ error: 'Please provide at least two stock symbols' });
+      }
+      
       // Get data for both stocks
       const stocksData = await Promise.all(
         stock.map(async (symbol) => {
-          const priceData = await fetchStockPrice(symbol);
-          const likes = await getStockLikes(symbol, like, clientIP, db);
+          if (!symbol || symbol.trim() === '') {
+            throw new Error('Invalid stock symbol');
+          }
+          const priceData = await fetchStockPrice(symbol.trim());
+          const likes = await getStockLikes(symbol.trim(), like, clientIp, db);
           return { ...priceData, likes };
         })
       );
@@ -115,8 +135,12 @@ router.get('/stock-prices', async (req, res) => {
     }
 
     // Handle single stock
-    const priceData = await fetchStockPrice(stock);
-    const likes = await getStockLikes(stock, like, clientIP, db);
+    if (!stock || stock.trim() === '') {
+      return res.status(400).json({ error: 'Please provide a stock symbol' });
+    }
+    
+    const priceData = await fetchStockPrice(stock.trim());
+    const likes = await getStockLikes(stock.trim(), like, clientIp, db);
     
     res.json({
       stockData: {
@@ -126,7 +150,7 @@ router.get('/stock-prices', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('API Error:', error);
     res.status(400).json({ error: error.message });
   }
 });

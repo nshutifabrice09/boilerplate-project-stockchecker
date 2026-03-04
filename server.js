@@ -11,24 +11,22 @@ const app = express();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+      defaultSrc: ["'self'"],           // Only allow from same origin
+      styleSrc: ["'self'"],              // CSS only from your server
+      scriptSrc: ["'self'"],             // JavaScript only from your server
+      imgSrc: ["'self'", "data:", "https://cdn.freecodecamp.org"], // Allow favicon from freeCodeCamp
+      connectSrc: ["'self'"],            // API calls only to your server
+      fontSrc: ["'self'"],                // Fonts only from your server
+      objectSrc: ["'none'"],              // No plugins
+      mediaSrc: ["'self'"],               // Media only from your server
+      frameSrc: ["'none'"],                // No iframes
       baseUri: ["'self'"],
       formAction: ["'self'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
     },
+    reportOnly: false
   },
-  hsts: {
-    maxAge: 0, // Disable for testing, set to 15552000 for production
-    includeSubDomains: false,
-    preload: false
-  },
+hsts: false, // Disable for testing
   noSniff: true,
   xssFilter: true,
   frameguard: { action: 'deny' }
